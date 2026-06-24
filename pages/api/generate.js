@@ -1,5 +1,5 @@
 // File: pages/api/generate.js
-// Déploie cette route sur Vercel
+// Version corrigée avec l'en-tête anthropic-version
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -24,32 +24,30 @@ Retourne UNIQUEMENT un JSON valide (pas de texte avant/après) avec cette struct
 {
   "linkedin": [
     {"day": 1, "post": "Post court LinkedIn (max 150 caractères)", "hook": "Hook qui accroche"},
-    {"day": 2, "post": "...", "hook": "..."},
-    ... 30 entrées total ...
+    {"day": 2, "post": "...", "hook": "..."}
   ],
   "tiktok": [
     {"day": 1, "script": "Script vidéo TikTok (3-4 lignes)", "idea": "Idée vidéo concrète"},
-    {"day": 2, "script": "...", "idea": "..."},
-    ... 30 entrées total ...
+    {"day": 2, "script": "...", "idea": "..."}
   ],
   "email": [
     {"day": 1, "subject": "Sujet email court", "body": "Corps email (2-3 phrases)"},
-    {"day": 2, "subject": "...", "body": "..."},
-    ... 30 entrées total ...
+    {"day": 2, "subject": "...", "body": "..."}
   ]
 }
 
-Chaque jour DOIT être DIFFÉRENT. Varie les sujets. Chaque post doit être PRÊT À COPIER-COLLER.`;
+Crée 30 entrées pour chaque plateforme (linkedin, tiktok, email). Chaque jour DOIT être DIFFÉRENT. Varie les sujets. Chaque post doit être PRÊT À COPIER-COLLER.`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4000,
+        model: "claude-sonnet-4-5",
+        max_tokens: 8000,
         messages: [
           { role: "user", content: prompt }
         ],
@@ -57,17 +55,20 @@ Chaque jour DOIT être DIFFÉRENT. Varie les sujets. Chaque post doit être PRÊ
     });
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Anthropic API error:', response.status, errorText);
+      return res.status(500).json({ error: `API error: ${response.status} - ${errorText}` });
     }
 
     const data = await response.json();
-    
+
     if (data.error) {
-      return res.status(500).json({ error: data.error });
+      console.error('API returned error:', data.error);
+      return res.status(500).json({ error: data.error.message || 'API error' });
     }
 
     const textContent = data.content[0]?.text || '';
-    
+
     // Extract JSON from response
     const jsonMatch = textContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
